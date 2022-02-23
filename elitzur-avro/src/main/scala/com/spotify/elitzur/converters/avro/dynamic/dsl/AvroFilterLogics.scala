@@ -20,6 +20,8 @@ package com.spotify.elitzur.converters.avro.dynamic.dsl
 import com.spotify.elitzur.converters.avro.dynamic.dsl.AvroMapperException._
 import org.apache.avro.Schema
 
+import scala.annotation.tailrec
+
 trait BaseFilterLogic {
   val filter: BaseFilter
   val avroOp: AvroOperatorsHolder
@@ -44,10 +46,10 @@ class NullableFilterLogic(
     if (firstFilter.rest.isDefined) {
       val recursiveResult = AvroObjMapper.getAvroFilters(firstFilter.rest.get, innerSchema)
       // innerOps represents the list of all filters to be applied if the avro obj is not null
-      val innerOps = AvroObjMapper.combineFns((firstFilter +: recursiveResult).map(_.ops))
-      NullableFilter(pos, innerOps)
+      val innerOps = (firstFilter +: recursiveResult).map(_.ops)
+      NullableFilter(pos, innerOps, AvroObjMapper.combineFns(innerOps))
     } else {
-      NullableFilter(pos, firstFilter.ops.fn)
+      NullableFilter(pos, List(firstFilter.ops), firstFilter.ops.fn)
     }
   }
 }
@@ -62,20 +64,33 @@ class ArrayFilterLogic(
 
   private def getArrayFilter(
     innerSchema: Schema, remainingField: Option[String], opToken: Option[String], pos: Int
-  ): ArrayFilter = {
+  ): BaseFilter = {
     if (remainingField.isDefined) {
       if (!opToken.contains(arrayToken)) throw new InvalidDynamicFieldException(MISSING_ARRAY_TOKEN)
       val recursiveResult = AvroObjMapper.getAvroFilters(remainingField.get, innerSchema)
       // innerOps represents the list of filters to be applied to each element in an array
       val innerOps = AvroObjMapper.combineFns(recursiveResult.map(_.ops))
-      // flattenFlag is true if one of the internal operation types is a flatmap based operation
-      val flattenFlag = recursiveResult
-        .filter(_.ops.isInstanceOf[ArrayFilter])
-        .exists(_.ops.asInstanceOf[ArrayFilter].flatten)
-      ArrayFilter(pos, innerOps, flattenFlag, isLastArray = false)
+      // flattenFlag is true if one of the internal operation types is a map based operation
+      val flattenFlag = getFlattenFlag(recursiveResult.map(_.ops))
+      if (flattenFlag) {
+        ArrayFlatmapFilter(pos, innerOps)
+      } else {
+        ArrayMapFilter(pos, innerOps)
+      }
     } else {
-      ArrayFilter(pos, NoopFilter().fn, opToken.contains(arrayToken), isLastArray = true)
+      ArrayNoopFilter(pos, opToken.contains(arrayToken))
     }
+  }
 
+  private def getFlattenFlag(ops: List[BaseFilter]): Boolean = {
+    ops.foldLeft(false)((accBoolean, currFilter) => {
+      val hasArrayFilter = currFilter match {
+        case a: ArrayNoopFilter => a.flatten
+        case n: NullableFilter => getFlattenFlag(n.innerOps)
+        case _: ArrayMapFilter | _: ArrayFlatmapFilter => true
+        case _ => false
+      }
+      accBoolean || hasArrayFilter
+    })
   }
 }

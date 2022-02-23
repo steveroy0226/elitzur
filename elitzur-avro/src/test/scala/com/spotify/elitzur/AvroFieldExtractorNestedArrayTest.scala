@@ -83,4 +83,18 @@ class AvroFieldExtractorNestedArrayTest extends AnyFlatSpec with Matchers {
     fn(testArrayRecord) should be(
       testArrayRecord.getInnerArrayRoot.asScala.map(_.getInnerArrayInsideRecord).asJava)
   }
+
+  it should "flatten resulting array with a nullable field in the path" in {
+    // Input: {"innerArrayRoot": [
+    //    {"deeperArrayNestedRecord": {"DeeperArray": [1, 2]}},
+    //    {"deeperArrayNestedRecord": {"DeeperArray": [3, 4]}}
+    //    ]}
+    // Output: [1, 2, 3, 4]
+    val fn = AvroObjMapper.getAvroFun(
+      ".innerArrayRoot[].deeperArrayNestedRecord.DeeperArray[]", testArrayRecord.getSchema)
+
+    fn(testArrayRecord) should be (
+      testArrayRecord.getInnerArrayRoot
+        .asScala.flatMap(_.getDeeperArrayNestedRecord.getDeeperArray.asScala).asJava)
+  }
 }

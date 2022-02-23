@@ -41,10 +41,14 @@ object SampleAvroRecords {
   def testAvroArrayTypes: TestAvroArrayTypes = {
     def innerArrayInsideRecord = Gen.listOfN[Long](2, Arbitrary.arbitrary[Long])
       .sample.get.map(_.asInstanceOf[java.lang.Long]).asJava
+    def deepArrayRecord = avroOf[DeeperArray]
+      .amend(innerArrayInsideRecord)(_.setDeeperArray)
     def innerArrayRecord = avroOf[innerArrayRecord]
       .amend(innerArrayInsideRecord)(_.setInnerArrayInsideRecord)
+      .amend(deepArrayRecord)(_.setDeeperArrayNestedRecord)
     def innerArrayRoot: Gen[util.List[innerArrayRecord]] =
       Gen.listOfN(2, innerArrayRecord).map(_.asJava)
+
     avroOf[TestAvroArrayTypes]
       .amend(innerArrayRoot)(_.setInnerArrayRoot)
       .sample

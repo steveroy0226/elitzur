@@ -39,6 +39,21 @@
                   "type": "long"
                 } ]
               }
+            },
+            {
+              "name": "deeperArrayNestedRecord",
+              "type": ["null", {
+                "type": "record",
+                "name": "DeeperArray",
+                "fields": [ {
+                  "name": "DeeperArray",
+                  "type": {
+                    "type": "array",
+                    "items": "long"
+                  }
+                } ]
+              }],
+              "default": null
             }
           ]
         }

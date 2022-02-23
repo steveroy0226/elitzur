@@ -32,29 +32,33 @@ case class IndexFilter(idx: Int) extends BaseFilter {
   override def fn: Any => Any = (o: Any) => o.asInstanceOf[GenericRecord].get(idx)
 }
 
-case class NullableFilter(idx: Int, innerFn: Any => Any) extends BaseFilter {
+case class NullableFilter(idx: Int, innerOps: List[BaseFilter], innerFn: Any => Any) extends
+  BaseFilter {
   override def fn: Any => Any = (o: Any) => {
     val innerAvroObj = o.asInstanceOf[GenericRecord].get(idx)
     if (innerAvroObj == null) null else innerFn(o)
   }
 }
 
-case class ArrayFilter(idx: Int, innerFn: Any => Any, flatten: Boolean, isLastArray: Boolean)
-  extends BaseFilter {
+case class ArrayFlatmapFilter(idx: Int, innerFn: Any => Any) extends BaseFilter {
   override def fn: Any => Any = (o: Any) => {
     val innerAvroObj = o.asInstanceOf[GenericRecord].get(idx)
     val res = new ju.ArrayList[Any]
-
-    (flatten, isLastArray) match {
-      case (true, true) | (false, false) =>
-        innerAvroObj.asInstanceOf[ju.List[Any]].forEach(elem => res.add(innerFn(elem)))
-        res
-      case (true, false) =>
-        innerAvroObj.asInstanceOf[ju.List[Any]].forEach(
-          elem => innerFn(elem).asInstanceOf[ju.List[Any]].forEach( x => res.add(x)))
-        res
-      case (false, true) =>
-        innerAvroObj
-    }
+    innerAvroObj.asInstanceOf[ju.List[Any]].forEach(
+      elem => innerFn(elem).asInstanceOf[ju.List[Any]].forEach( x => res.add(x)))
+    res
   }
+}
+
+case class ArrayMapFilter(idx: Int, innerFn: Any => Any) extends BaseFilter {
+  override def fn: Any => Any = (o: Any) => {
+    val innerAvroObj = o.asInstanceOf[GenericRecord].get(idx)
+    val res = new ju.ArrayList[Any]
+    innerAvroObj.asInstanceOf[ju.List[Any]].forEach(elem => res.add(innerFn(elem)))
+    res
+  }
+}
+
+case class ArrayNoopFilter(idx: Int, flatten: Boolean) extends BaseFilter {
+  override def fn: Any => Any = (o: Any) => IndexFilter(idx).fn(o)
 }
