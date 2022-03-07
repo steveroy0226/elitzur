@@ -14,11 +14,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.spotify.elitzur.converters.avro.dynamic.dsl
+package com.spotify.elitzur.converters.avro.dynamic.dsl.avro
 
-import com.spotify.elitzur.converters.avro.dynamic.dsl.AvroAccessorException._
-import com.spotify.elitzur.converters.avro.dynamic.dsl.AvroAccessorUtil.mapToAccessors
+import com.spotify.elitzur.converters.avro.dynamic.dsl.avro.AvroAccessorException._
+import com.spotify.elitzur.converters.avro.dynamic.dsl.avro.AvroAccessorUtil.mapToAccessors
 import org.apache.avro.Schema
+
 import java.{util => ju}
 
 trait BaseAccessorLogic {
