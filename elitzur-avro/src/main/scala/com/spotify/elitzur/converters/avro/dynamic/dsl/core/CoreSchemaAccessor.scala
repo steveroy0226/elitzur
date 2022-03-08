@@ -1,70 +1,77 @@
 package com.spotify.elitzur.converters.avro.dynamic.dsl.core
 
+import com.google.api.services.bigquery.model.TableSchema
 import org.apache.avro.Schema
+import org.apache.avro.generic.GenericRecord
 
 import scala.annotation.tailrec
 import scala.collection.mutable
 import java.{util => ju}
 
-trait BaseObject {
+class BaseObject[T: AvroOrBqSchema](schema: T) {
   type Accessor = Any => Any
 
   private val mapToAccessor: mutable.Map[String, Accessor] = mutable.Map.empty[String, Accessor]
 
-  def getFieldAccessor(fieldPath: String, schema: Schema): Accessor = {
+  def getFieldAccessor(fieldPath: String): Accessor = {
     if (!mapToAccessor.contains(fieldPath)) {
-      val accessorOps = getFieldAccessorOps(fieldPath, schema).map(_.ops)
+      val accessorOps = schema match {
+          case avro: Schema => AvroAccessorUtil.getFieldAccessorOps(fieldPath, avro).map(_.ops)
+          case _ => throw new Exception("???")
+        }
       mapToAccessor += (fieldPath -> combineFns(accessorOps))
     }
     mapToAccessor(fieldPath)
-  }
-
-  @tailrec
-  private[dsl] def getFieldAccessorOps(
-    path: String,
-    schema: Schema,
-    accAccessorOps: List[AccessorOpsContainer] = List.empty[AccessorOpsContainer]
-  ): List[AccessorOpsContainer] = {
-    val currentAccessorOp = new CoreAccessorUtil().mapToAccessors(path, schema)
-    val appAccessorOps = accAccessorOps :+ currentAccessorOp
-    currentAccessorOp.rest match {
-      case Some(remainingPath) =>
-        getFieldAccessorOps(remainingPath, currentAccessorOp.schema, appAccessorOps)
-      case _ => appAccessorOps
-    }
   }
 
   private[dsl] def combineFns(fns: List[BaseAccessor]): Accessor =
     fns.map(_.fn).reduceLeftOption((f, g) => f andThen g).getOrElse(NoopAccessor().fn)
 }
 
-class CoreAccessorUtil {
-  def isPrimitive(schema: Schema): Boolean = {
+object AvroAccessorUtil extends CoreAccessorUtil[Schema]() {
+  override def isPrimitive(fieldSchema: Schema): Boolean = {
     val enumSet = ju.EnumSet.complementOf(
       ju.EnumSet.of(Schema.Type.ARRAY, Schema.Type.MAP, Schema.Type.UNION))
-    enumSet.contains(schema.getType)
+    enumSet.contains(fieldSchema.getType)
   }
 
-  def isRepeated(schema: Schema): Boolean = {
-    schema.getType == Schema.Type.ARRAY
+  override def isRepeated(fieldSchema: Schema): Boolean = {
+    fieldSchema.getType == Schema.Type.ARRAY
   }
 
-  def isNullable(schema: Schema): Boolean = {
-    schema.getType == Schema.Type.UNION
+  override def isNullable(fieldSchema: Schema): Boolean = {
+    fieldSchema.getType == Schema.Type.UNION
   }
 
-  def isNotSupported(schema: Schema): Boolean = {
-    schema.getType == Schema.Type.MAP
+  override def isNotSupported(fieldSchema: Schema): Boolean = {
+    fieldSchema.getType == Schema.Type.MAP
   }
 
-  def mapToAccessors(path: String, schema: Schema): AccessorOpsContainer = {
+  override def getFieldSchema(schema: Schema, fieldSchema: String): Schema = {
+    schema.getField(fieldSchema).schema()
+  }
+
+}
+
+abstract class CoreAccessorUtil[T: AvroOrBqSchema]() {
+  def isPrimitive(fieldSchema: T): Boolean
+
+  def isRepeated(fieldSchema: T): Boolean
+
+  def isNullable(fieldSchema: T): Boolean
+
+  def isNotSupported(fieldSchema: T): Boolean
+
+  def getFieldSchema(schema: T, fieldSchema: String): T
+
+  def mapToAccessors(path: String, parentSchema: T): AccessorOpsContainer[T] = {
     val fieldTokens = pathToTokens(path)
-    val fieldSchema = schema.getField(fieldTokens.field)
+    val fieldSchema = getFieldSchema(parentSchema, fieldTokens.field)
 
-    mapToAccessors(fieldSchema.schema, fieldTokens)
+    mapToAccessors(fieldSchema, fieldTokens)
   }
 
-  def mapToAccessors(fieldSchema: Schema, fieldTokens: FieldTokens): AccessorOpsContainer = {
+  def mapToAccessors(fieldSchema: T, fieldTokens: FieldTokens): AccessorOpsContainer[T] = {
     fieldSchema match {
       case _schema if isPrimitive(_schema) =>
         new IndexAccessorLogic(fieldSchema, fieldTokens).accessorWithMetadata
@@ -73,6 +80,21 @@ class CoreAccessorUtil {
 //      case Schema.Type.UNION =>
 //        new NullableAccessorLogic(fieldSchema, fieldTokens).avroOp
       case _schema if isNotSupported(_schema) => throw new Exception("hello")
+    }
+  }
+
+  @tailrec
+  private[dsl] final def getFieldAccessorOps(
+    fieldPath: String,
+    parentSchema: T,
+    accAccessorOps: List[AccessorOpsContainer[T]] = List.empty[AccessorOpsContainer[T]]
+  ): List[AccessorOpsContainer[T]] = {
+    val currentAccessorOp = mapToAccessors(fieldPath, parentSchema)
+    val appAccessorOps = accAccessorOps :+ currentAccessorOp
+    currentAccessorOp.rest match {
+      case Some(remainingPath) =>
+        getFieldAccessorOps(remainingPath, currentAccessorOp.schema, appAccessorOps)
+      case _ => appAccessorOps
     }
   }
 
@@ -89,6 +111,7 @@ class CoreAccessorUtil {
   }
 }
 
-case class AccessorOpsContainer(ops: BaseAccessor, schema: Schema, rest: Option[String])
+case class AccessorOpsContainer[T: AvroOrBqSchema](
+  ops: BaseAccessor, schema: T, rest: Option[String])
 
 case class FieldTokens(field: String, op: Option[String], rest: Option[String])

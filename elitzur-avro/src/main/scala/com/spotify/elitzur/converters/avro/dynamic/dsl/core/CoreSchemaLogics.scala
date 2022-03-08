@@ -22,15 +22,18 @@ import org.apache.avro.Schema
 
 import java.{util => ju}
 
-trait BaseAccessorLogic {
+abstract class BaseAccessorLogic[T: AvroOrBqSchema] {
   val accessor: BaseAccessor
-  val accessorWithMetadata: AccessorOpsContainer
+  val accessorWithMetadata: AccessorOpsContainer[T]
 }
 
-class IndexAccessorLogic(schema: Schema, fieldTokens: FieldTokens) extends BaseAccessorLogic {
+class IndexAccessorLogic[T: AvroOrBqSchema](schema: T, fieldTokens: FieldTokens)
+  extends BaseAccessorLogic[T] {
+
   override val accessor: BaseAccessor = IndexAccessor(fieldTokens.field)
-  override val accessorWithMetadata: AccessorOpsContainer =
+  override val accessorWithMetadata: AccessorOpsContainer[T] =
     AccessorOpsContainer(accessor, schema, fieldTokens.rest)
+
 }
 
 //
