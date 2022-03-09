@@ -13,21 +13,29 @@ abstract class CoreAccessorUtil[T: AvroOrBqSchema] {
 
   def getFieldSchema(schema: T, fieldName: String): T
 
+  def getNonNullableFieldSchema(schema: T): T
+
   def mapToAccessors(path: String, parentSchema: T): AccessorOpsContainer[T] = {
-    val fieldTokens = pathToTokens(path)
+    val fieldTokens = FieldTokens(path)
     val fieldSchema = getFieldSchema(parentSchema, fieldTokens.field)
 
     mapToAccessors(fieldSchema, fieldTokens)
   }
 
-  private def mapToAccessors(fieldSchema: T, fieldTokens: FieldTokens): AccessorOpsContainer[T] = {
+  private def mapToAccessors(
+    fieldSchema: T, fieldTokens: FieldTokens
+  ): AccessorOpsContainer[T] = {
     fieldSchema match {
       case _schema if isPrimitive(_schema) =>
-        new IndexAccessorLogic(fieldSchema, fieldTokens).accessorWithMetadata
+        new IndexAccessorLogic(_schema, fieldTokens).accessorWithMetadata
       //      case Schema.Type.ARRAY =>
       //        new ArrayAccessorLogic(fieldSchema.getElementType, fieldTokens).avroOp
-      //      case Schema.Type.UNION =>
-      //        new NullableAccessorLogic(fieldSchema, fieldTokens).avroOp
+      case _schema if isNullable(_schema) =>
+        val nonNullSchema = getNonNullableFieldSchema(_schema)
+        val currOp = mapToAccessors(nonNullSchema, fieldTokens).ops
+        val restOp = getInnerOps(nonNullSchema, fieldTokens.rest)
+        val allOps = currOp :: restOp
+        new NullableAccessorLogic(nonNullSchema, fieldTokens, allOps).accessorWithMetadata
       case _schema if isNotSupported(_schema) => throw new Exception("hello")
     }
   }
@@ -47,20 +55,14 @@ abstract class CoreAccessorUtil[T: AvroOrBqSchema] {
     }
   }
 
-  private def pathToTokens(path: String): FieldTokens = {
-    def strToOpt(str: String) :Option[String] = if (str.nonEmpty) Some(str) else None
-    val token = '.'
-    if (path.headOption.contains(token)) {
-      val (fieldOps, rest) = path.drop(1).span(_ != token)
-      val (field, op) = fieldOps.span(char => char.isLetterOrDigit || char == '_')
-      FieldTokens(field, strToOpt(op), strToOpt(rest))
+  private def getInnerOps(childSchema: T, remainingPath: Option[String]): List[BaseAccessor] = {
+    if (remainingPath.isDefined) {
+      getFieldAccessorOps(remainingPath.get, childSchema).map(_.ops)
     } else {
-      throw new Exception("hello")
+      List.empty[BaseAccessor]
     }
   }
 }
 
 case class AccessorOpsContainer[T: AvroOrBqSchema](
   ops: BaseAccessor, schema: T, rest: Option[String])
-
-case class FieldTokens(field: String, op: Option[String], rest: Option[String])

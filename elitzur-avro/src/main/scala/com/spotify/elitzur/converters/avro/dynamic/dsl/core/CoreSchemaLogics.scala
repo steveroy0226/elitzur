@@ -18,56 +18,28 @@ package com.spotify.elitzur.converters.avro.dynamic.dsl.core
 
 import java.{util => ju}
 
-abstract class BaseAccessorLogic[T: AvroOrBqSchema] {
+abstract class BaseAccessorLogic[T: AvroOrBqSchema](schema: T, fieldTokens: FieldTokens) {
   val accessor: BaseAccessor
   val accessorWithMetadata: AccessorOpsContainer[T]
+  def fieldAccessorFn(): Any => Any =
+    AvroOrBqSchemaUtil.getAvroOrBqFieldObject(schema, fieldTokens.field)
 }
 
 class IndexAccessorLogic[T: AvroOrBqSchema](schema: T, fieldTokens: FieldTokens)
-  extends BaseAccessorLogic[T] {
-
-  override val accessor: BaseAccessor = IndexAccessor(
-    AvroOrBqSchemaUtil.getAvroOrBqFieldObject(schema, fieldTokens.field)
-  )
+  extends BaseAccessorLogic[T](schema, fieldTokens) {
+  override val accessor: BaseAccessor = IndexAccessor(fieldAccessorFn())
   override val accessorWithMetadata: AccessorOpsContainer[T] =
     AccessorOpsContainer(accessor, schema, fieldTokens.rest)
-
 }
 
-//
-//class NullableAccessorLogic(
-//  schema: Schema, fieldTokens: AvroFieldTokens) extends BaseAccessorLogic {
-//  private final val nullableToken = "?"
-//
-//  val nonNullSchema: Schema = getNonNullSchema(schema)
-//  val headAccessor: AvroAccessorContainer = mapToAccessors(nonNullSchema, fieldTokens)
-//  override val accessor: BaseAccessor =
-//    getNullableAccessor(nonNullSchema, fieldTokens.field, headAccessor)
-//  override val avroOp: AvroAccessorContainer = AvroAccessorContainer(accessor, nonNullSchema, None)
-//
-//  private def getNullableAccessor(
-//    innerSchema: Schema, field: String, headAccessor: AvroAccessorContainer
-//  ): NullableAccessor = {
-//    if (headAccessor.rest.isDefined) {
-//      val recursiveResult = AvroObjMapper.getAvroAccessors(headAccessor.rest.get, innerSchema)
-//      // innerOps represents the list of all accessors to be applied if the avro obj is not null
-//      val innerOps = (headAccessor +: recursiveResult).map(_.ops)
-//      NullableAccessor(field, innerOps, AvroObjMapper.combineFns(innerOps))
-//    } else {
-//      NullableAccessor(field, List(headAccessor.ops), headAccessor.ops.fn)
-//    }
-//  }
-//
-//  private def getNonNullSchema(schema: Schema): Schema = {
-//    val nonNullSchemas: ju.ArrayList[Schema] = new ju.ArrayList[Schema]
-//    schema.getTypes.forEach(s => if (s.getType != Schema.Type.NULL) {nonNullSchemas.add(s)})
-//    if (nonNullSchemas.size > 1) {
-//      throw new InvalidDynamicFieldException(INVALID_UNION_SCHEMA)
-//    }
-//    nonNullSchemas.get(0)
-//  }
-//}
-//
+class NullableAccessorLogic[T: AvroOrBqSchema](
+  schema: T, fieldTokens: FieldTokens, innerAccessors: List[BaseAccessor]
+) extends BaseAccessorLogic[T](schema, fieldTokens) {
+  override val accessor: BaseAccessor = NullableAccessor(fieldAccessorFn(), innerAccessors)
+  override val accessorWithMetadata: AccessorOpsContainer[T] =
+    AccessorOpsContainer(accessor, schema, None)
+}
+
 //class ArrayAccessorLogic(
 //  arrayElemSchema: Schema, fieldTokens: AvroFieldTokens) extends BaseAccessorLogic {
 //  private final val arrayToken = "[]"

@@ -26,4 +26,6 @@ object BqAccessorUtil extends CoreAccessorUtil[BqSchema] {
       .orElseThrow(() => throw new Exception("the field doesn't exist!!!"))
     BqSchema(fieldSchema.getFields, fieldSchema.getMode)
   }
+
+  override def getNonNullableFieldSchema(schema: BqSchema): BqSchema = schema
 }

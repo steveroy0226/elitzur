@@ -16,9 +16,7 @@
  */
 package com.spotify.elitzur.converters.avro.dynamic.dsl.core
 
-import org.apache.avro.generic.GenericRecord
-
-import java.{util => ju}
+import com.spotify.elitzur.converters.avro.dynamic.dsl.DynamicImplicits.AccessorFunctionUtils
 
 trait BaseAccessor {
   def fn: Any => Any
@@ -32,14 +30,15 @@ case class IndexAccessor(fieldFn: Any => Any) extends BaseAccessor {
   override def fn: Any => Any = fieldFn
 }
 
-//case class NullableAccessor(field: String, innerOps: List[BaseAccessor], innerFn: Any => Any)
-//  extends BaseAccessor {
-//  override def fn: Any => Any = (o: Any) => {
-//    val innerAvroObj = o.asInstanceOf[GenericRecord].get(field)
-//    if (innerAvroObj == null) null else innerFn(o)
-//  }
-//}
-//
+case class NullableAccessor(fieldFn: Any => Any, innerOps: List[BaseAccessor])
+  extends BaseAccessor {
+  override def fn: Any => Any = (o: Any) => {
+    val innerAvroObj = fieldFn(o)
+    val innerFn = innerOps.combineFns
+    if (innerAvroObj == null) null else innerFn(o)
+  }
+}
+
 //case class ArrayFlatmapAccessor(field: String, innerFn: Any => Any) extends BaseAccessor {
 //  override def fn: Any => Any = (o: Any) => {
 //    val innerAvroObj = o.asInstanceOf[GenericRecord].get(field)

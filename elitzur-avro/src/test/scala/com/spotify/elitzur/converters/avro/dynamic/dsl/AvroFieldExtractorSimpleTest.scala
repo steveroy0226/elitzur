@@ -16,7 +16,6 @@
  */
 package com.spotify.elitzur.converters.avro.dynamic.dsl
 
-import com.spotify.elitzur.converters.avro.dynamic.dsl.{FieldAccessor, core}
 import com.spotify.elitzur.converters.avro.dynamic.dsl.helpers.SampleAvroRecords._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
