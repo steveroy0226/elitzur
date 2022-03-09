@@ -1,6 +1,6 @@
-package com.spotify.elitzur.converters.avro.dynamic.dsl.avro
+package com.spotify.elitzur.converters.avro.dynamic.dsl.core
 
-object AvroAccessorException {
+object AccessorExceptions {
   class InvalidDynamicFieldException(msg: String) extends Exception(msg)
 
   final val MISSING_TOKEN =

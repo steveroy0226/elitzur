@@ -28,8 +28,8 @@ case class NoopAccessor() extends BaseAccessor {
   def fn: Any => Any = (o: Any) => o
 }
 
-case class IndexAccessor(field: String) extends BaseAccessor {
-  override def fn: Any => Any = (o: Any) => o.asInstanceOf[GenericRecord].get(field)
+case class IndexAccessor(fieldFn: Any => Any) extends BaseAccessor {
+  override def fn: Any => Any = fieldFn
 }
 
 //case class NullableAccessor(field: String, innerOps: List[BaseAccessor], innerFn: Any => Any)

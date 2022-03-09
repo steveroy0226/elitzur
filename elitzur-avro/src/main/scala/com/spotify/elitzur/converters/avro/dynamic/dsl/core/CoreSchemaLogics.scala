@@ -16,10 +16,6 @@
  */
 package com.spotify.elitzur.converters.avro.dynamic.dsl.core
 
-import com.spotify.elitzur.converters.avro.dynamic.dsl.avro.AvroAccessorException._
-import com.spotify.elitzur.converters.avro.dynamic.dsl.avro.AvroAccessorUtil.mapToAccessors
-import org.apache.avro.Schema
-
 import java.{util => ju}
 
 abstract class BaseAccessorLogic[T: AvroOrBqSchema] {
@@ -30,7 +26,9 @@ abstract class BaseAccessorLogic[T: AvroOrBqSchema] {
 class IndexAccessorLogic[T: AvroOrBqSchema](schema: T, fieldTokens: FieldTokens)
   extends BaseAccessorLogic[T] {
 
-  override val accessor: BaseAccessor = IndexAccessor(fieldTokens.field)
+  override val accessor: BaseAccessor = IndexAccessor(
+    AvroOrBqSchemaUtil.getAvroOrBqFieldObject(schema, fieldTokens.field)
+  )
   override val accessorWithMetadata: AccessorOpsContainer[T] =
     AccessorOpsContainer(accessor, schema, fieldTokens.rest)
 

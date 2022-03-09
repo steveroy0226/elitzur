@@ -14,7 +14,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package com.spotify.elitzur.helpers
+package com.spotify.elitzur.converters.avro.dynamic.dsl.helpers
 
 import java.util
 import com.spotify.elitzur.schemas._
