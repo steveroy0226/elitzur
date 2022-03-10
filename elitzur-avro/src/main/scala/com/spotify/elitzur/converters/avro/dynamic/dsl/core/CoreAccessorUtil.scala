@@ -13,6 +13,8 @@ abstract class CoreAccessorUtil[T: AvroOrBqSchema] {
 
   def getFieldSchema(schema: T, fieldName: String): T
 
+  def getElemFieldSchema(schema: T): T
+
   def getNonNullableFieldSchema(schema: T): T
 
   def mapToAccessors(path: String, parentSchema: T): AccessorOpsContainer[T] = {
@@ -28,14 +30,16 @@ abstract class CoreAccessorUtil[T: AvroOrBqSchema] {
     fieldSchema match {
       case _schema if isPrimitive(_schema) =>
         new IndexAccessorLogic(_schema, fieldTokens).accessorWithMetadata
-      //      case Schema.Type.ARRAY =>
-      //        new ArrayAccessorLogic(fieldSchema.getElementType, fieldTokens).avroOp
       case _schema if isNullable(_schema) =>
         val nonNullSchema = getNonNullableFieldSchema(_schema)
-        val currAccessor = mapToAccessors(nonNullSchema, fieldTokens).ops
-        val remainingAccessors = getInnerAccessors(nonNullSchema, fieldTokens.rest)
+        val currAccessor = mapToAccessors(nonNullSchema, fieldTokens)
+        val remainingAccessors = getInnerAccessors(nonNullSchema, currAccessor.rest)
         new NullableAccessorLogic(
-          nonNullSchema, fieldTokens, currAccessor :: remainingAccessors).accessorWithMetadata
+          nonNullSchema, fieldTokens, currAccessor.ops :: remainingAccessors).accessorWithMetadata
+      case _schema if isRepeated(_schema) =>
+        val elemSchema = getElemFieldSchema(_schema)
+        val remainingAccessors = getInnerAccessors(elemSchema, fieldTokens.rest)
+        new ArrayAccessorLogic(elemSchema, fieldTokens, remainingAccessors).accessorWithMetadata
       case _schema if isNotSupported(_schema) => throw new Exception("hello")
     }
   }

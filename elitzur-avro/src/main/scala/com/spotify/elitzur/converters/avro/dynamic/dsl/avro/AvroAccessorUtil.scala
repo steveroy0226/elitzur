@@ -39,4 +39,7 @@ object AvroAccessorUtil extends CoreAccessorUtil[Schema] {
     }
     nonNullSchemas.get(0)
   }
+
+  override def getElemFieldSchema(schema: Schema): Schema = schema.getElementType
+
 }

@@ -16,7 +16,7 @@
  */
 package com.spotify.elitzur.converters.avro.dynamic.dsl.core
 
-import com.spotify.elitzur.converters.avro.dynamic.dsl.DynamicImplicits.AccessorFunctionUtils
+import java.{util => ju}
 
 trait BaseAccessor {
   def fn: Any => Any
@@ -30,42 +30,57 @@ case class IndexAccessor(fieldFn: Any => Any) extends BaseAccessor {
   override def fn: Any => Any = fieldFn
 }
 
-case class NullableGenericAccessor(fieldFn: Any => Any, innerOps: List[BaseAccessor])
-  extends BaseAccessor {
+case class NullableGenericAccessor(
+  fieldFn: Any => Any, innerFn: Any => Any, innerOps: List[BaseAccessor]) extends BaseAccessor {
   override def fn: Any => Any = (o: Any) => {
-    val fieldValue = fieldFn(o)
-    val innerFn = innerOps.combineFns
-    if (fieldValue == null) null else innerFn(o)
+    if (fieldFn(o) == null) null else innerFn(o)
   }
 }
 
-case class NullableIndexAccessor(fieldFn: Any => Any, innerOps: List[BaseAccessor])
-  extends BaseAccessor {
+case class NullableIndexAccessor(
+  fieldFn: Any => Any, innerFn: Any => Any, innerOps: List[BaseAccessor]) extends BaseAccessor {
   override def fn: Any => Any = (o: Any) => {
     val fieldValue = fieldFn(o)
-    if (fieldValue == null) null else innerOps.combineFns(fieldValue)
+    if (fieldValue == null) null else innerFn(fieldValue)
   }
 }
 
-//case class ArrayFlatmapAccessor(field: String, innerFn: Any => Any) extends BaseAccessor {
-//  override def fn: Any => Any = (o: Any) => {
-//    val innerAvroObj = o.asInstanceOf[GenericRecord].get(field)
-//    val res = new ju.ArrayList[Any]
-//    innerAvroObj.asInstanceOf[ju.List[Any]].forEach(
-//      elem => innerFn(elem).asInstanceOf[ju.List[Any]].forEach( x => res.add(x)))
-//    res
-//  }
-//}
-//
-//case class ArrayMapAccessor(field: String, innerFn: Any => Any) extends BaseAccessor {
-//  override def fn: Any => Any = (o: Any) => {
-//    val innerAvroObj = o.asInstanceOf[GenericRecord].get(field)
-//    val res = new ju.ArrayList[Any]
-//    innerAvroObj.asInstanceOf[ju.List[Any]].forEach(elem => res.add(innerFn(elem)))
-//    res
-//  }
-//}
-//
-//case class ArrayNoopAccessor(field: String, flatten: Boolean) extends BaseAccessor {
-//  override def fn: Any => Any = (o: Any) => IndexAccessor(field).fn(o)
-//}
+case class ArrayFlatmapAccessor(
+  fieldFn: Any => Any, innerFn: Any => Any, innerOps: List[BaseAccessor]) extends BaseAccessor {
+  override def fn: Any => Any = (o: Any) => {
+    val innerAvroObj = fieldFn(o)
+    val res = new ju.ArrayList[Any]
+    innerAvroObj.asInstanceOf[ju.List[Any]].forEach(
+      elem => {
+        val innerVal = innerFn(elem)
+        // TODO: remove this null check. this null check isn't necessary in almost all cases
+        if (innerVal == null) {
+          res.add(null)
+        } else {
+          innerVal.asInstanceOf[ju.List[Any]].forEach( x => res.add(x))
+        }
+      }
+    )
+    res
+  }
+}
+
+case class ArrayMapAccessor(
+  fieldFn: Any => Any, innerFn: Any => Any, innerOps: List[BaseAccessor]) extends BaseAccessor {
+  override def fn: Any => Any = (o: Any) => {
+    val innerAvroObj = fieldFn(o)
+    val res = new ju.ArrayList[Any]
+    innerAvroObj.asInstanceOf[ju.List[Any]].forEach(
+      elem => {
+        val innerVal = innerFn(elem)
+        // TODO: remove this null check. this null check isn't necessary in almost all cases
+        if (innerVal == null) res.add(null) else { res.add(innerFn(elem)) }
+      }
+    )
+    res
+  }
+}
+
+case class ArrayNoopAccessor(fieldFn: Any => Any, flatten: Boolean) extends BaseAccessor {
+  override def fn: Any => Any = (o: Any) => IndexAccessor(fieldFn).fn(o)
+}

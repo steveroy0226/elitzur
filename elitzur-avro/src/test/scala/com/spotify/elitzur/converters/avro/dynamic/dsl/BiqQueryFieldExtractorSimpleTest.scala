@@ -61,12 +61,4 @@ class BiqQueryFieldExtractorSimpleTest extends AnyFlatSpec with Matchers {
       testSimpleBqRecord.get("inner").asInstanceOf[ju.Map[String, Any]].get("userId"))
   }
 
-//  it should "extract a record if the field has _ in it" in {
-//    val schema = SchemaBuilder
-//      .builder.record("record").fields.requiredLong("_user_id10").endRecord
-//    val testSimpleAvroRecord = new GenericRecordBuilder(schema).set("_user_id10", 1L).build
-//    val fn = AvroObjMapper.getAvroFun("._user_id10", testSimpleAvroRecord.getSchema)
-//
-//    fn(testSimpleAvroRecord) should be (testSimpleAvroRecord.get("_user_id10"))
-//  }
 }

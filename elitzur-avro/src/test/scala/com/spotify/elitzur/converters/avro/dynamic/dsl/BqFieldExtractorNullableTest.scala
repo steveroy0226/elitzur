@@ -78,37 +78,4 @@ class BqFieldExtractorNullableTest extends AnyFlatSpec with Matchers {
     fn(testNullRecord) should be (testNullRecord.get("optRecord"))
   }
 
-  it should "return the elements of an array if array is not null" in {
-    // Input: {"optRecord": {"optRepeatedArray": [{"userId": "a", "countryCode": "US"}]}}
-    // Output: "a"
-
-//    val fnArrayNull = AvroObjMapper.getAvroFun(".optRecord.optRepeatedArray[].userId",
-//      TestAvroUnionTypes.SCHEMA$)
-//    val testInnerNonNullRecord = TestAvroUnionTypes.newBuilder()
-//      .setOptRecord(
-//        InnerComplexType.newBuilder()
-//          .setOptString(null)
-//          .setOptRepeatedArray(List(innerNestedSample()).asJava).build()
-//      ).build
-//
-//    fnArrayNull(testInnerNonNullRecord) should be (
-//      testInnerNonNullRecord.getOptRecord.getOptRepeatedArray.asScala.map(_.getUserId).asJava)
-  }
-
-  it should "return null if array is null" in {
-    // Input: {"optRecord": {"optRepeatedArray": null}}
-    // Output: null
-
-//    val fnArrayNull = AvroObjMapper.getAvroFun(".optRecord.optRepeatedArray[].userId",
-//      TestAvroUnionTypes.SCHEMA$)
-//    val testInnerNullRecord = TestAvroUnionTypes.newBuilder()
-//      .setOptRecord(
-//        InnerComplexType.newBuilder()
-//          .setOptString(null)
-//          .setOptRepeatedArray(null).build()).build
-//
-//    fnArrayNull(testInnerNullRecord) should be (
-//      testInnerNullRecord.getOptRecord.getOptRepeatedArray)
-  }
-
 }

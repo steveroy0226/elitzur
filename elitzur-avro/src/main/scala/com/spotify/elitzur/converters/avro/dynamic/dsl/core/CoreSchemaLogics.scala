@@ -16,7 +16,8 @@
  */
 package com.spotify.elitzur.converters.avro.dynamic.dsl.core
 
-import java.{util => ju}
+import com.spotify.elitzur.converters.avro.dynamic.dsl.DynamicImplicits.AccessorFunctionUtils
+import com.spotify.elitzur.converters.avro.dynamic.dsl.core.AccessorExceptions._
 
 abstract class BaseAccessorLogic[T: AvroOrBqSchema](schema: T, fieldTokens: FieldTokens) {
   val accessor: BaseAccessor
@@ -41,11 +42,12 @@ class NullableAccessorLogic[T: AvroOrBqSchema](
     } else {
       innerAccessors match {
         case head::tail if head.isInstanceOf[IndexAccessor] =>
-          NullableIndexAccessor(fieldAccessorFn, tail)
+          NullableIndexAccessor(fieldAccessorFn, tail.combineFns, tail)
         // TODO: Add logging here. Below code path exists for allowing nullable repeated fields,
         // which is supported by Avro. NullableGenericAccessor requires that the same field
         // accessor calculation to take place twice, which can be improved in the future.
-        case _ => NullableGenericAccessor(fieldAccessorFn, innerAccessors)
+        case _ =>
+          NullableGenericAccessor(fieldAccessorFn, innerAccessors.combineFns, innerAccessors)
       }
     }
   }
@@ -53,21 +55,32 @@ class NullableAccessorLogic[T: AvroOrBqSchema](
     AccessorOpsContainer(accessor, schema, None)
 }
 
-//class ArrayAccessorLogic[T: AvroOrBqSchema](
-//  schema: T, fieldTokens: FieldTokens, innerAccessors: List[BaseAccessor]
-//) extends BaseAccessorLogic[T](schema, fieldTokens) {
-//
-////  private final val arrayToken = "[]"
-//
-//  override val accessor: BaseAccessor = getArrayAccessor(schema, fieldTokens)
-//  override val avroOp: AvroAccessorContainer =
-//    AvroAccessorContainer(accessor, schema, None)
-//
-//  private def getArrayAccessor(innerSchema: Schema, fieldTokens: AvroFieldTokens): BaseAccessor = {
+class ArrayAccessorLogic[T: AvroOrBqSchema](
+  schema: T, fieldTokens: FieldTokens, innerAccessors: List[BaseAccessor]
+) extends BaseAccessorLogic[T](schema, fieldTokens) {
+  private final val arrayToken = "[]"
+
+  override val accessor: BaseAccessor = {
+    if (innerAccessors.isEmpty) {
+      ArrayNoopAccessor(fieldAccessorFn, fieldTokens.op.contains(arrayToken))
+    } else {
+      if (!fieldTokens.op.contains(arrayToken)) {
+        throw new InvalidDynamicFieldException(MISSING_ARRAY_TOKEN)
+      }
+      val innerFn = innerAccessors.combineFns
+      if (getFlattenFlag(innerAccessors)) {
+        ArrayFlatmapAccessor(fieldAccessorFn, innerFn, innerAccessors)
+      } else {
+        ArrayMapAccessor(fieldAccessorFn, innerFn, innerAccessors)
+      }
+    }
+  }
+  override val accessorWithMetadata: AccessorOpsContainer[T] =
+    AccessorOpsContainer(accessor, schema, None)
+
+//  private def getArrayAccessor(innerSchema: T, fieldTokens: FieldTokens): BaseAccessor = {
 //    if (fieldTokens.rest.isDefined) {
-//      if (!fieldTokens.op.contains(arrayToken)) {
-//        throw new InvalidDynamicFieldException(MISSING_ARRAY_TOKEN)
-//      }
+//
 //      val recursiveResult = AvroObjMapper.getAvroAccessors(fieldTokens.rest.get, innerSchema)
 //      // innerOps represents the list of accessors to be applied to each element in an array
 //      val innerOps = AvroObjMapper.combineFns(recursiveResult.map(_.ops))
@@ -83,15 +96,16 @@ class NullableAccessorLogic[T: AvroOrBqSchema](
 //    }
 //  }
 //
-//  private def getFlattenFlag(ops: List[BaseAccessor]): Boolean = {
-//    ops.foldLeft(false)((accBoolean, currAccessor) => {
-//      val hasArrayAccessor = currAccessor match {
-//        case a: ArrayNoopAccessor => a.flatten
-//        case n: NullableAccessor => getFlattenFlag(n.innerOps)
-//        case _: ArrayMapAccessor | _: ArrayFlatmapAccessor => true
-//        case _ => false
-//      }
-//      accBoolean || hasArrayAccessor
-//    })
-//  }
-//}
+  private def getFlattenFlag(ops: List[BaseAccessor]): Boolean = {
+    ops.foldLeft(false)((accBoolean, currAccessor) => {
+      val hasArrayAccessor = currAccessor match {
+        case n: NullableIndexAccessor => getFlattenFlag(n.innerOps)
+        case n: NullableGenericAccessor => getFlattenFlag(n.innerOps)
+        case a: ArrayNoopAccessor => a.flatten
+        case _: ArrayMapAccessor | _: ArrayFlatmapAccessor => true
+        case _ => false
+      }
+      accBoolean || hasArrayAccessor
+    })
+  }
+}
