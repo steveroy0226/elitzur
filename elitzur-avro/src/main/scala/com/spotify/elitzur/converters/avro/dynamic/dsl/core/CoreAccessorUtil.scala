@@ -32,10 +32,10 @@ abstract class CoreAccessorUtil[T: AvroOrBqSchema] {
       //        new ArrayAccessorLogic(fieldSchema.getElementType, fieldTokens).avroOp
       case _schema if isNullable(_schema) =>
         val nonNullSchema = getNonNullableFieldSchema(_schema)
-        val currOp = mapToAccessors(nonNullSchema, fieldTokens).ops
-        val restOp = getInnerOps(nonNullSchema, fieldTokens.rest)
-        val allOps = currOp :: restOp
-        new NullableAccessorLogic(nonNullSchema, fieldTokens, allOps).accessorWithMetadata
+        val currAccessor = mapToAccessors(nonNullSchema, fieldTokens).ops
+        val remainingAccessors = getInnerAccessors(nonNullSchema, fieldTokens.rest)
+        new NullableAccessorLogic(
+          nonNullSchema, fieldTokens, currAccessor :: remainingAccessors).accessorWithMetadata
       case _schema if isNotSupported(_schema) => throw new Exception("hello")
     }
   }
@@ -55,9 +55,9 @@ abstract class CoreAccessorUtil[T: AvroOrBqSchema] {
     }
   }
 
-  private def getInnerOps(childSchema: T, remainingPath: Option[String]): List[BaseAccessor] = {
+  private def getInnerAccessors(schema: T, remainingPath: Option[String]): List[BaseAccessor] = {
     if (remainingPath.isDefined) {
-      getFieldAccessorOps(remainingPath.get, childSchema).map(_.ops)
+      getFieldAccessorOps(remainingPath.get, schema).map(_.ops)
     } else {
       List.empty[BaseAccessor]
     }

@@ -23,7 +23,7 @@ import org.scalatest.matchers.should.Matchers
 
 import collection.JavaConverters._
 
-class AvroFieldExtractorUnionTest extends AnyFlatSpec with Matchers {
+class AvroFieldExtractorNullableTest extends AnyFlatSpec with Matchers {
 
   it should "extract a null from an Union schema type" in {
     // Input: {"optRecord": null}

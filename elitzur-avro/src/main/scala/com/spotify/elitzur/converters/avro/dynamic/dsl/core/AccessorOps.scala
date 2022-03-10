@@ -23,19 +23,27 @@ trait BaseAccessor {
 }
 
 case class NoopAccessor() extends BaseAccessor {
-  def fn: Any => Any = (o: Any) => o
+  override def fn: Any => Any = (o: Any) => o
 }
 
 case class IndexAccessor(fieldFn: Any => Any) extends BaseAccessor {
   override def fn: Any => Any = fieldFn
 }
 
-case class NullableAccessor(fieldFn: Any => Any, innerOps: List[BaseAccessor])
+case class NullableGenericAccessor(fieldFn: Any => Any, innerOps: List[BaseAccessor])
   extends BaseAccessor {
   override def fn: Any => Any = (o: Any) => {
-    val innerAvroObj = fieldFn(o)
+    val fieldValue = fieldFn(o)
     val innerFn = innerOps.combineFns
-    if (innerAvroObj == null) null else innerFn(o)
+    if (fieldValue == null) null else innerFn(o)
+  }
+}
+
+case class NullableIndexAccessor(fieldFn: Any => Any, innerOps: List[BaseAccessor])
+  extends BaseAccessor {
+  override def fn: Any => Any = (o: Any) => {
+    val fieldValue = fieldFn(o)
+    if (fieldValue == null) null else innerOps.combineFns(fieldValue)
   }
 }
 

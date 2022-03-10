@@ -21,13 +21,13 @@ import java.{util => ju}
 abstract class BaseAccessorLogic[T: AvroOrBqSchema](schema: T, fieldTokens: FieldTokens) {
   val accessor: BaseAccessor
   val accessorWithMetadata: AccessorOpsContainer[T]
-  def fieldAccessorFn(): Any => Any =
+  def fieldAccessorFn: Any => Any =
     AvroOrBqSchemaUtil.getAvroOrBqFieldObject(schema, fieldTokens.field)
 }
 
 class IndexAccessorLogic[T: AvroOrBqSchema](schema: T, fieldTokens: FieldTokens)
   extends BaseAccessorLogic[T](schema, fieldTokens) {
-  override val accessor: BaseAccessor = IndexAccessor(fieldAccessorFn())
+  override val accessor: BaseAccessor = IndexAccessor(fieldAccessorFn)
   override val accessorWithMetadata: AccessorOpsContainer[T] =
     AccessorOpsContainer(accessor, schema, fieldTokens.rest)
 }
@@ -35,18 +35,33 @@ class IndexAccessorLogic[T: AvroOrBqSchema](schema: T, fieldTokens: FieldTokens)
 class NullableAccessorLogic[T: AvroOrBqSchema](
   schema: T, fieldTokens: FieldTokens, innerAccessors: List[BaseAccessor]
 ) extends BaseAccessorLogic[T](schema, fieldTokens) {
-  override val accessor: BaseAccessor = NullableAccessor(fieldAccessorFn(), innerAccessors)
+  override val accessor: BaseAccessor = {
+    if (innerAccessors.isEmpty) {
+      IndexAccessor(fieldAccessorFn)
+    } else {
+      innerAccessors match {
+        case head::tail if head.isInstanceOf[IndexAccessor] =>
+          NullableIndexAccessor(fieldAccessorFn, tail)
+        // TODO: Add logging here. Below code path exists for allowing nullable repeated fields,
+        // which is supported by Avro. NullableGenericAccessor requires that the same field
+        // accessor calculation to take place twice, which can be improved in the future.
+        case _ => NullableGenericAccessor(fieldAccessorFn, innerAccessors)
+      }
+    }
+  }
   override val accessorWithMetadata: AccessorOpsContainer[T] =
     AccessorOpsContainer(accessor, schema, None)
 }
 
-//class ArrayAccessorLogic(
-//  arrayElemSchema: Schema, fieldTokens: AvroFieldTokens) extends BaseAccessorLogic {
-//  private final val arrayToken = "[]"
+//class ArrayAccessorLogic[T: AvroOrBqSchema](
+//  schema: T, fieldTokens: FieldTokens, innerAccessors: List[BaseAccessor]
+//) extends BaseAccessorLogic[T](schema, fieldTokens) {
 //
-//  override val accessor: BaseAccessor = getArrayAccessor(arrayElemSchema, fieldTokens)
+////  private final val arrayToken = "[]"
+//
+//  override val accessor: BaseAccessor = getArrayAccessor(schema, fieldTokens)
 //  override val avroOp: AvroAccessorContainer =
-//    AvroAccessorContainer(accessor, arrayElemSchema, None)
+//    AvroAccessorContainer(accessor, schema, None)
 //
 //  private def getArrayAccessor(innerSchema: Schema, fieldTokens: AvroFieldTokens): BaseAccessor = {
 //    if (fieldTokens.rest.isDefined) {

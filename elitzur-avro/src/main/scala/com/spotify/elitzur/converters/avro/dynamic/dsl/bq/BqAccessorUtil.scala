@@ -27,5 +27,8 @@ object BqAccessorUtil extends CoreAccessorUtil[BqSchema] {
     BqSchema(fieldSchema.getFields, fieldSchema.getMode)
   }
 
-  override def getNonNullableFieldSchema(schema: BqSchema): BqSchema = schema
+  // TODO: review this logic
+  override def getNonNullableFieldSchema(schema: BqSchema): BqSchema = {
+    schema.copy(fieldMode = BqField.Required)
+  }
 }
