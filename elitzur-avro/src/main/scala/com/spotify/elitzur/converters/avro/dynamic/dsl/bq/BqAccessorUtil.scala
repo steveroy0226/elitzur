@@ -32,6 +32,5 @@ object BqAccessorUtil extends CoreAccessorUtil[BqSchema] {
     schema.copy(fieldMode = BqField.Required)
   }
 
-  // TODO: review this logic
   override def getElemFieldSchema(schema: BqSchema): BqSchema = schema
 }

@@ -44,8 +44,8 @@ class NullableAccessorLogic[T: AvroOrBqSchema](
         case head::tail if head.isInstanceOf[IndexAccessor] =>
           NullableIndexAccessor(fieldAccessorFn, tail.combineFns, tail)
         // TODO: Add logging here. Below code path exists for allowing nullable repeated fields,
-        // which is supported by Avro. NullableGenericAccessor requires that the same field
-        // accessor calculation to take place twice, which can be improved in the future.
+        // which is supported in Avro. NullableGenericAccessor requires that the calculation for
+        // accessing the same filed to take place twice, which can be improved in the future.
         case _ =>
           NullableGenericAccessor(fieldAccessorFn, innerAccessors.combineFns, innerAccessors)
       }
@@ -78,24 +78,6 @@ class ArrayAccessorLogic[T: AvroOrBqSchema](
   override val accessorWithMetadata: AccessorOpsContainer[T] =
     AccessorOpsContainer(accessor, schema, None)
 
-//  private def getArrayAccessor(innerSchema: T, fieldTokens: FieldTokens): BaseAccessor = {
-//    if (fieldTokens.rest.isDefined) {
-//
-//      val recursiveResult = AvroObjMapper.getAvroAccessors(fieldTokens.rest.get, innerSchema)
-//      // innerOps represents the list of accessors to be applied to each element in an array
-//      val innerOps = AvroObjMapper.combineFns(recursiveResult.map(_.ops))
-//      // flattenFlag is true if one of the internal operation types is a map based operation
-//      val flattenFlag = getFlattenFlag(recursiveResult.map(_.ops))
-//      if (flattenFlag) {
-//        ArrayFlatmapAccessor(fieldTokens.field, innerOps)
-//      } else {
-//        ArrayMapAccessor(fieldTokens.field, innerOps)
-//      }
-//    } else {
-//      ArrayNoopAccessor(fieldTokens.field, fieldTokens.op.contains(arrayToken))
-//    }
-//  }
-//
   private def getFlattenFlag(ops: List[BaseAccessor]): Boolean = {
     ops.foldLeft(false)((accBoolean, currAccessor) => {
       val hasArrayAccessor = currAccessor match {

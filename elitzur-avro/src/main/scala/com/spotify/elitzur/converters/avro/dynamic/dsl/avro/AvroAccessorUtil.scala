@@ -34,7 +34,7 @@ object AvroAccessorUtil extends CoreAccessorUtil[Schema] {
   override def getNonNullableFieldSchema(schema: Schema): Schema = {
     val nonNullSchemas: ju.ArrayList[Schema] = new ju.ArrayList[Schema]
     schema.getTypes.forEach(s => if (s.getType != Schema.Type.NULL) {nonNullSchemas.add(s)})
-    if (nonNullSchemas.size > 1) {
+    if (nonNullSchemas.size > 1 || nonNullSchemas.isEmpty) {
       throw new InvalidDynamicFieldException(INVALID_UNION_SCHEMA)
     }
     nonNullSchemas.get(0)

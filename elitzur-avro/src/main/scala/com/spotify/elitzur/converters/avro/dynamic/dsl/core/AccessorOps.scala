@@ -48,9 +48,9 @@ case class NullableIndexAccessor(
 case class ArrayFlatmapAccessor(
   fieldFn: Any => Any, innerFn: Any => Any, innerOps: List[BaseAccessor]) extends BaseAccessor {
   override def fn: Any => Any = (o: Any) => {
-    val innerAvroObj = fieldFn(o)
+    val innerFieldObj = fieldFn(o)
     val res = new ju.ArrayList[Any]
-    innerAvroObj.asInstanceOf[ju.List[Any]].forEach(
+    innerFieldObj.asInstanceOf[ju.List[Any]].forEach(
       elem => {
         val innerVal = innerFn(elem)
         // TODO: remove this null check. this null check isn't necessary in almost all cases
@@ -68,9 +68,9 @@ case class ArrayFlatmapAccessor(
 case class ArrayMapAccessor(
   fieldFn: Any => Any, innerFn: Any => Any, innerOps: List[BaseAccessor]) extends BaseAccessor {
   override def fn: Any => Any = (o: Any) => {
-    val innerAvroObj = fieldFn(o)
+    val innerFieldObj = fieldFn(o)
     val res = new ju.ArrayList[Any]
-    innerAvroObj.asInstanceOf[ju.List[Any]].forEach(
+    innerFieldObj.asInstanceOf[ju.List[Any]].forEach(
       elem => {
         val innerVal = innerFn(elem)
         // TODO: remove this null check. this null check isn't necessary in almost all cases
