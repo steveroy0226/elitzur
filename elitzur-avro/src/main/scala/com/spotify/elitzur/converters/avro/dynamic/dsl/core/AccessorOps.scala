@@ -46,41 +46,51 @@ case class NullableIndexAccessor(
 }
 
 case class ArrayFlatmapAccessor(
-  fieldFn: Any => Any, innerFn: Any => Any, innerOps: List[BaseAccessor]) extends BaseAccessor {
+  fieldFn: Any => Any,
+  innerFn: Any => Any,
+  innerOps: List[BaseAccessor],
+  array: ju.List[Any] = new ju.ArrayList[Any]
+) extends BaseAccessor {
   override def fn: Any => Any = (o: Any) => {
     val innerFieldObj = fieldFn(o)
-    val res = new ju.ArrayList[Any]
-    innerFieldObj.asInstanceOf[ju.List[Any]].forEach(
-      elem => {
-        val innerVal = innerFn(elem)
-        // TODO: remove this null check. this null check isn't necessary in almost all cases
-        if (innerVal == null) {
-          res.add(null)
-        } else {
-          innerVal.asInstanceOf[ju.List[Any]].forEach( x => res.add(x))
-        }
-      }
-    )
-    res
+    if (innerFieldObj == null) {
+      array.add(innerFieldObj)
+    } else {
+      innerFieldObj.asInstanceOf[ju.List[Any]].forEach(elem => innerFn(elem))
+    }
   }
 }
 
 case class ArrayMapAccessor(
-  fieldFn: Any => Any, innerFn: Any => Any, innerOps: List[BaseAccessor]) extends BaseAccessor {
+  fieldFn: Any => Any,
+  innerFn: Any => Any,
+  innerOps: List[BaseAccessor],
+  array: ju.List[Any] = new ju.ArrayList[Any]
+) extends BaseAccessor {
   override def fn: Any => Any = (o: Any) => {
     val innerFieldObj = fieldFn(o)
-    val res = new ju.ArrayList[Any]
-    innerFieldObj.asInstanceOf[ju.List[Any]].forEach(
-      elem => {
-        val innerVal = innerFn(elem)
-        // TODO: remove this null check. this null check isn't necessary in almost all cases
-        if (innerVal == null) res.add(null) else { res.add(innerFn(elem)) }
-      }
-    )
-    res
+    if (innerFieldObj == null) {
+      array.add(innerFieldObj)
+    } else {
+      innerFieldObj.asInstanceOf[ju.List[Any]].forEach(elem => array.add(innerFn(elem)))
+    }
   }
 }
 
-case class ArrayNoopAccessor(fieldFn: Any => Any, flatten: Boolean) extends BaseAccessor {
-  override def fn: Any => Any = (o: Any) => IndexAccessor(fieldFn).fn(o)
+case class ArrayNoopAccessor(
+  fieldFn: Any => Any,
+  flatten: Boolean,
+  array: ju.List[Any] = new ju.ArrayList[Any]
+) extends BaseAccessor {
+  override def fn: Any => Any = (o: Any) =>
+    if (flatten) {
+      val innerFieldObj = fieldFn(o)
+      if (innerFieldObj == null) {
+        array.add(innerFieldObj)
+      } else {
+        innerFieldObj.asInstanceOf[ju.List[Any]].forEach(elem => array.add(elem))
+      }
+    } else {
+      IndexAccessor(fieldFn).fn(o)
+    }
 }
